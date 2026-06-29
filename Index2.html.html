@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Passport Photo Arranger</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      background: #f4f6f9;
+      margin: 0;
+      padding: 20px;
+      color: #333;
+    }
+    h1 {
+      text-align: center;
+      color: #2c3e50;
+      margin-bottom: 20px;
+    }
+    .container {
+      display: flex;
+      gap: 20px;
+      max-width: 1200px;
+      margin: auto;
+    }
+    .controls {
+      flex: 1;
+      background: #fff;
+      padding: 15px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    .controls label {
+      display: block;
+      margin: 8px 0;
+      font-weight: 500;
+    }
+    .controls input, .controls select, .controls button {
+      margin-top: 5px;
+      padding: 6px 10px;
+      border: 1px solid #ccc;
+      font-size: 14px;
+      width: 100%;
+    }
+    .controls button {
+      background: #3498db;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      margin-top: 10px;
+      transition: background 0.3s;
+    }
+    .controls button:hover {
+      background: #2980b9;
+    }
+    .preview {
+      flex: 2;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+    }
+    .paper {
+      background: #fff;
+      border: 2px solid #ccc;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      display: flex;
+      flex-direction: column;
+    }
+    .row {
+      display: flex;
+      justify-content: center;
+    }
+    .photo {
+      background-size: cover;
+      background-position: center;
+      border: 1px solid black; /* default border */
+      margin: var(--gap, 5px); /* gap between images */
+    }
+    @media print {
+      body {
+        margin: 0;
+        padding: 0;
+        background: #fff;
+      }
+      .controls, h1 {
+        display: none; /* hide controls and header */
+      }
+      .container {
+        display: block;
+      }
+      #paper {
+        margin-top: 5mm; /* default 5mm from top */
+        margin-left: auto;
+        margin-right: auto;
+        box-shadow: none;
+        border: none;
+        width: 100%; /* fit to page width */
+        height: auto;
+        page-break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>Passport Photo Arranger</h1>
+  <div class="container">
+    <div class="controls">
+      <label>Upload Photo: <input type="file" id="photoUpload" accept="image/*"></label>
+      <label>Paper Size:
+        <select id="paperSize">
+          <option value="A4">A4 (210mm × 297mm)</option>
+          <option value="A3">A3 (297mm × 420mm)</option>
+        </select>
+      </label>
+      <label>Photo Width (mm): <input type="number" id="photoWidth" value="35"></label>
+      <label>Photo Height (mm): <input type="number" id="photoHeight" value="45"></label>
+      <label>Gap Between Images (mm): <input type="number" id="photoPadding" value="5"></label>
+      <label>Margin Around Canvas (mm): <input type="number" id="canvasMargin" value="10"></label>
+      <label>Number of Rows: <input type="number" id="rows" value="3"></label>
+      <label>Border Thickness (px): <input type="number" id="borderWidth" value="1"></label>
+      <label>Border Color: <input type="color" id="borderColor" value="#000000"></label>
+      <button onclick="window.print()">Print</button>
+      <button onclick="savePDF()">Save as PDF</button>
+    </div>
+
+    <div class="preview">
+      <div id="paper" class="paper"></div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.3/html2pdf.bundle.min.js"></script>
+  <script>
+    let uploadedImage = '';
+
+    document.querySelectorAll('#photoWidth, #photoHeight, #photoPadding, #canvasMargin, #rows, #paperSize, #borderWidth, #borderColor')
+      .forEach(input => input.addEventListener('input', generatePhotos));
+
+    document.getElementById('photoUpload').addEventListener('change', function(event) {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          uploadedImage = e.target.result;
+          generatePhotos();
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    function mmToPx(mm) {
+      return (mm * 3.78); // approximate conversion
+    }
+
+    function generatePhotos() {
+      const paper = document.getElementById('paper');
+      const paperSize = document.getElementById('paperSize').value;
+      const width = paperSize === 'A4' ? mmToPx(210) : mmToPx(297);
+      const height = paperSize === 'A4' ? mmToPx(297) : mmToPx(420);
+      const photoWidth = mmToPx(document.getElementById('photoWidth').value);
+      const photoHeight = mmToPx(document.getElementById('photoHeight').value);
+      const gap = mmToPx(document.getElementById('photoPadding').value);
+      const margin = mmToPx(document.getElementById('canvasMargin').value);
+      const rows = document.getElementById('rows').value;
+      const borderWidth = document.getElementById('borderWidth').value;
+      const borderColor = document.getElementById('borderColor').value;
+
+      paper.style.width = width + 'px';
+      paper.style.height = height + 'px';
+      paper.style.margin = margin + 'px auto';
+      paper.innerHTML = '';
+
+      for (let r = 0; r < rows; r++) {
+        const row = document.createElement('div');
+        row.className = 'row';
+        for (let i = 0; i < 6; i++) {
+          const photo = document.createElement('div');
+          photo.className = 'photo';
+          photo.style.width = photoWidth + 'px';
+          photo.style.height = photoHeight + 'px';
+          photo.style.margin = gap + 'px';
+          photo.style.border = `${borderWidth}px solid ${borderColor}`;
+          if (uploadedImage) {
+            photo.style.backgroundImage = `url(${uploadedImage})`;
+          }
+          row.appendChild(photo);
+        }
+        paper.appendChild(row);
+      }
+    }
+
+    function savePDF() {
+      const element = document.getElementById('paper');
+      const opt = {
+        margin: 0,
+        filename: 'passport_photos.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
+      html2pdf().set(opt).from(element).save();
+    }
+
+    // Initial render
+    generatePhotos();
+  </script>
+</body>
+</html>
+< rows; r++) {
+        const row = document.create
